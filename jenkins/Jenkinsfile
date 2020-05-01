@@ -13,6 +13,9 @@ pipeline {
 		string(name: 'YUM_REPO_HOST', defaultValue: env.DEFAULT_SNAPSHOT_DEV_HOST, description: 'Please provide the yum repo server.')
 		string(name: 'YUM_REPO_PATH', defaultValue: env.DEFAULT_SNAPSHOT_DEV_PATH, description: 'Please provide the yum repo path.')
 	}
+  environment {
+        CI = 'true'
+}
   stages {
     stage('Source_code') {
       steps {
