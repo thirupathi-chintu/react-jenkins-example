@@ -13,11 +13,14 @@ pipeline {
 		string(name: 'YUM_REPO_HOST', defaultValue: env.DEFAULT_SNAPSHOT_DEV_HOST, description: 'Please provide the yum repo server.')
 		string(name: 'YUM_REPO_PATH', defaultValue: env.DEFAULT_SNAPSHOT_DEV_PATH, description: 'Please provide the yum repo path.')
 	}
+  environment {
+        CI = 'true'
+}
   stages {
     stage('scp') {
       steps {
 	    script {			 
-			 sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'sudo mkdir -p -m 777 /appdata/deployment/test'"
+	     sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'sudo mkdir -p -m 777 /appdata/deployment/test'"
              sh "scp -r * ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST}:${params.YUM_REPO_PATH}"
 		  }
       }
@@ -29,14 +32,14 @@ pipeline {
         }
     stage('Test') {
             steps {
-                sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && chmod +x ./jenkins/scripts/test.sh && ./jenkins/scripts/test.sh'"
+                sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && ./jenkins/scripts/test.sh'"
             }
         }
     stage('Deliver') {
             steps {
-                sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && chmod +x ./jenkins/scripts/deliver.sh && ./jenkins/scripts/deliver.sh'"
+                sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && ./jenkins/scripts/deliver.sh'"
                 input message: 'Finished using the web site? (Click "Proceed" to continue)'
-				sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && chmod +x ./jenkins/scripts/kill.sh && ./jenkins/scripts/kill.sh'"
+				sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && ./jenkins/scripts/kill.sh'"
             }
         }
   }
