@@ -17,16 +17,18 @@ pipeline {
         CI = 'true'
    }
   stages {
-    stage('scp') {
+    stage('Stop_ifexists') {
       steps {
 	    script {			 
-	     sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'sudo mkdir -p -m 777 /appdata/deployment/test'"
-             sh "scp -r * ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST}:${params.YUM_REPO_PATH}"
-		  }
+	     sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && ./jenkins/scripts/kill.sh'"
+             sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'sudo rm -rf /appdata/deployment/test'"
+	   }
+        }
       }
-    }
-	stage('Build') {
+     stage('Build') {
             steps {
+                sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'sudo mkdir -p -m 777 /appdata/deployment/test'"
+                sh "scp -r * ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST}:${params.YUM_REPO_PATH}"
                 sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && npm install'"
             }
         }
@@ -38,8 +40,6 @@ pipeline {
     stage('Deliver') {
             steps {
                 sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && ./jenkins/scripts/deliver.sh'"
-                input message: 'Finished using the web site? (Click "Proceed" to continue)'
-		sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/test && ./jenkins/scripts/kill.sh'"
             }
         }
   }
