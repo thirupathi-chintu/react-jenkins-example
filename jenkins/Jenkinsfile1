@@ -1,0 +1,52 @@
+pipeline {   
+  agent any
+  options {
+		buildDiscarder(logRotator(numToKeepStr: '10'))
+		timeout(time: 30, unit: 'MINUTES')
+		timestamps()
+	}
+
+	parameters {
+		booleanParam(name: 'ANALYZE_BUILD', defaultValue: false, description: 'Analyze the build?')
+		booleanParam(name: 'PUBLISH_BUILD', defaultValue: true, description: 'Publish the build?')
+		string(name: 'YUM_REPO_USER', defaultValue: 'fcstapp', description: 'Please provide the password-less login enabled yum repo user.')
+		string(name: 'YUM_REPO_HOST', defaultValue: env.DEFAULT_SNAPSHOT_DEV_HOST, description: 'Please provide the yum repo server.')
+		string(name: 'YUM_REPO_PATH', defaultValue: env.DEFAULT_SNAPSHOT_DEV_PATH, description: 'Please provide the yum repo path.')
+	}
+  stages {
+    stage('Source_code') {
+      steps {
+	    git credentialsId: 'b72e8e0f-780e-482a-8e44-ad92310763b1', url: 'https://github.com/forecastera/DN2.0_web.git'
+      }
+    }
+    stage('scp') {
+      steps {
+	    script {			 
+			 sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'sudo mkdir -p -m 777 /appdata/deployment/DN2.0_Web'"
+             sh "scp -r * ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST}:${params.YUM_REPO_PATH}"
+		  }
+      }
+    }
+    stage('ssh') {
+      steps {
+		sh "ssh -tt ${params.YUM_REPO_USER}@${params.YUM_REPO_HOST} 'cd /appdata/deployment/DN2.0_Web && npm install'"
+      }
+    }
+  }
+  post {
+		success {
+			emailext (recipientProviders: [[$class: 'RequesterRecipientProvider'], [$class: 'DevelopersRecipientProvider']], to: "mail@mail.com", subject:"BUILD & PUBLISH RPM SUCCESS: ${currentBuild.fullDisplayName}", body: "Build & Publish RPM Successful! Build Published to ${params.DEPLOY_HOST} with following changes: ${currentBuild.absoluteUrl}changes. Please go to ${BUILD_URL} and verify the build.")
+			cleanWs()
+		}
+
+		failure {
+			emailext (recipientProviders: [[$class: 'CulpritsRecipientProvider'], [$class: 'RequesterRecipientProvider']], to: "mail@mail.com", subject:"BUILD & PUBLISH RPM FAILURE: ${currentBuild.fullDisplayName}", body: "Build & Publish RPM Failed! Your commits is suspected to have caused the build failure. Please go to ${BUILD_URL} for details and resolve the build failure at the earliest.", attachLog: true, compressLog: true)
+			cleanWs()
+		}
+
+		aborted {
+			emailext (recipientProviders: [[$class: 'RequesterRecipientProvider'], [$class: 'DevelopersRecipientProvider']], subject:"BUILD & PUBLISH RPM ABORTED: ${currentBuild.fullDisplayName}", body: "Build & Publish RPM Aborted! Please go to ${BUILD_URL} and verify the build.", attachLog: false, compressLog: false)
+			cleanWs()
+		}
+	}
+}
